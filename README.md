@@ -1,0 +1,3 @@
+This is an ongoing project that attempts to produce natural language descriptions from visual input. At the moment the natural language is chosen to be Persian, but the vision is to build the overall architecture in a way to facilitate adaptation to other languages.  
+
+The input files are of the type `SVG`. The first step was to parse the SVG files and determine the names of the shapes and their attributes (coordinates, color, etc.).
