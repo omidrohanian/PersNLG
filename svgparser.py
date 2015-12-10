@@ -12,7 +12,10 @@ class SVGParser:
         try:
             self.width, self.height = map(float,svg_tag.attrib['viewBox'].split()[2:])
         except KeyError:
-            raise Exception("Invalid SVG format")
+            try:
+                self.width, self.height = float(svg_tag.attrib['height']),float(svg_tag.attrib['width'])
+            except KeyError:
+                raise Exception("Invalid SVG format")
         # The supported colors are the following 
         self.colors = {
                 "fill:#552200":'brown', "fill:#ff00ff": 'purple',
@@ -28,22 +31,33 @@ class SVGParser:
         '{http://www.w3.org/2000/svg}path': 'path'}
         self.detected_objects = self.create_detected_obj()
 
-    def create_areas(self):
+    def create_areas(self,x,y):
         mean_x = self.width/5
         mean_y = self.height/5
         partition_x = 2*mean_x
         partition_y = 2*mean_y
-        central_area = lambda x,y:partition_x <=x<= mean_x+partition_x and partition_y <=y<= mean_y+partition_y
-        up_left = lambda x,y: (0 <=x<= partition_x and mean_y <=y<= self.height) or \
-        (0 <=x<= mean_x and mean_y+partition_y <=y<= self.height)
-        up_right = lambda x,y: (mean_x+partition_x <=x<= self.width and mean_y/2+partition_y <=y<= self.height) or \
-        (mean_x/2+partition_x <=x<= self.width and mean_y+partition_y <=y<= self.height)
-        down_left = lambda x,y: (0 <=x<= partition_x+mean_x/2 and 0 <=y<= partition_y) or \
-        (0 <=x<= partition_x and 0 <=y<= mean_y/2+partition_y)
-        down_right = lambda x,y: (partition_x+mean_x/2 <=x<= self.width and 0 <=y<= partition_y) or \
-        (mean_x/2 + partition_x <=x<= self.width and 0 <=y<= mean_y/2+partition_y)
+        if (partition_x <=x<= mean_x+partition_x) and (partition_y <=y<= mean_y+partition_y):
+            return 'central_area'
+        if (partition_x <=x<= mean_x+partition_x) and (partition_y + mean_y <=y<= self.height):
+            return 'up'
+        if (0 <=x<= partition_x) and (0 <=y<= partition_y):
+            return 'down'
+        elif 0 <=x<= partition_x and mean_y+partition_y <=y<= self.height:
+            return 'up_left'
+        elif 0 <=x<= partition_x and partition_y <=y<= partition_y+mean_y:
+            return 'left'
+        elif 0 <=x<= partition_x and 0 <=y<= partition_y:
+            return 'down_left'
+        elif ((mean_x+partition_x <=x<= self.width) and (mean_y+partition_y <=y<= self.height)):
+            return 'up_right'
+        elif partition_x+mean_x <=x<= self.width and partition_y <=y<= partition_y+mean_y:
+            return 'right'
+        elif partition_x+mean_x<=x<= self.width and 0<=y<= partition_y:
+            return 'down_right'
+        else :
+            return 'UNRECOGNIZED_ARE'
 
-    def cal_center_of_gravity(self, shape, *coordinates):
+    def cal_centeroid(self, shape, *coordinates):
         if shape in {'rectangle','square'}:
             x,y = zip(*coordinates)
             return sum(x)/4,sum(y)/4
@@ -96,7 +110,7 @@ class SVGParser:
 
             if 'circle' in detected_object:
                 shape_data['shape'] = 'circle'
-                shape_data['CG'] = float(detected_object['circle']['cx']),float(detected_object['circle']['cy'])          
+                shape_data['centeroid'] = float(detected_object['circle']['cx']),float(detected_object['circle']['cy'])          
                 shape_data['radius'] = float(detected_object['circle']['r'])
                 shape_data['color'] = self.colors[detected_object['circle']['style'].split(';')[0]]
             elif 'rect' in detected_object:
@@ -107,14 +121,14 @@ class SVGParser:
                 shape_data['height'] = float(detected_object['rect']['height'])
                 shape_data['width'] = float(detected_object['rect']['width'])
                 shape_data['color'] = self.colors[detected_object['rect']['style'].split(';')[0]]
-                x,y = float(detected_object['rect']['x']),self.height - float(detected_object['rect']['y'])
+                x,y = float(detected_object['rect']['x']),float(detected_object['rect']['y'])
                 coordinates = [
                     (x,y),
                     (shape_data['width'],y+shape_data['height']),
                     (shape_data['width']+x,y+shape_data['height']),
                     (shape_data['width']+x,shape_data['height'])
                     ]
-                shape_data['CG'] = self.cal_center_of_gravity(shape_data['shape'],*coordinates) 
+                shape_data['centeroid'] = self.cal_centeroid(shape_data['shape'],*coordinates) 
             elif 'path' in detected_object:
                 if (len(detected_object['path']['d'].split(','))-1) == 3:
                     shape_data['shape'] = 'triangle'
@@ -122,16 +136,19 @@ class SVGParser:
                     shape_data['shape'] = 'pentagon'
                 shape_data['points'] = list(chain.from_iterable(self.coordinates(detected_object['path']['d'])))
                 shape_data['color'] = self.colors[detected_object['path']['style'].split(';')[0]]
-                shape_data['CG'] = self.cal_center_of_gravity(shape_data['shape'],*shape_data['points'])
+                shape_data['centeroid'] = self.cal_centeroid(shape_data['shape'],*shape_data['points'])
             elif 'ellipse' in detected_object:
                 shape_data['shape'] = 'ellipse'
                 shape_data['width'] = float(detected_object['ellipse']['rx'])
                 shape_data['height'] = float(detected_object['ellipse']['ry'])
-                shape_data['CG'] = float(detected_object['ellipse']['cx']),float(detected_object['ellipse']['cy'])
+                shape_data['centeroid'] = float(detected_object['ellipse']['cx']),float(detected_object['ellipse']['cy'])
                 shape_data['color'] = self.colors[detected_object['ellipse']['style'].split(';')[0]]
         
             yield shape_data
 
+    def exact_areas(self, shape_and_CG):
+        for shape,CG in shape_and_CG:
+            yield shape, self.create_areas(*CG)
 
     def run(self):
         return self.shape_specification(self.detected_objects)
@@ -139,6 +156,9 @@ class SVGParser:
 
 
 if __name__ == '__main__':
-    SVGP = SVGParser('1.svg')
+    SVGP = SVGParser('4.svg')
+    shape_and_CG = []
     for i in SVGP.run():
         print (i)
+        shape_and_CG.append((i['shape'],i['centeroid']))
+    print (list(SVGP.exact_areas(shape_and_CG)))
