@@ -10,8 +10,7 @@ class SVGParser:
         self.root = self.tree.getroot()
         svg_tag = next(self.root.iter('{http://www.w3.org/2000/svg}svg'))
         try:
-            self.height = float(svg_tag.attrib['height'])
-            self.width = float(svg_tag.attrib['width'])
+            self.width, self.height = map(float,svg_tag.attrib['viewBox'].split()[2:])
         except KeyError:
             raise Exception("Invalid SVG format")
         # The supported colors are the following 
@@ -44,8 +43,17 @@ class SVGParser:
         down_right = lambda x,y: (partition_x+mean_x/2 <=x<= self.width and 0 <=y<= partition_y) or \
         (mean_x/2 + partition_x <=x<= self.width and 0 <=y<= mean_y/2+partition_y)
 
-    def cal_center_of_gravity(coordinates):
-        pass
+    def cal_center_of_gravity(self, shape, *coordinates):
+        if shape in {'rectangle','square'}:
+            x,y = zip(*coordinates)
+            return sum(x)/4,sum(y)/4
+        elif shape in {'triangle','pentagon'}:
+            lenght = len(coordinates)
+            x_coords, y_coords = zip(*coordinates)
+            A = sum((x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/2
+            CX = sum((x_coords[i]+x_coords[i+1]) * (x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/(6*A)
+            CY = sum((y_coords[i]+y_coords[i+1]) * (x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/(6*A)
+            return round(CX,2),round(CY,2)
 
     def create_detected_obj(self):
         for tag in self.tags_with_namespace:
@@ -88,8 +96,7 @@ class SVGParser:
 
             if 'circle' in detected_object:
                 shape_data['shape'] = 'circle'
-                shape_data['x'] = float(detected_object['circle']['cx'])          
-                shape_data['y'] = float(detected_object['circle']['cy']) 
+                shape_data['CG'] = float(detected_object['circle']['cx']),float(detected_object['circle']['cy'])          
                 shape_data['radius'] = float(detected_object['circle']['r'])
                 shape_data['color'] = self.colors[detected_object['circle']['style'].split(';')[0]]
             elif 'rect' in detected_object:
@@ -99,9 +106,15 @@ class SVGParser:
                     shape_data['shape'] = 'rectangle'
                 shape_data['height'] = float(detected_object['rect']['height'])
                 shape_data['width'] = float(detected_object['rect']['width'])
-                shape_data['x'] = float(detected_object['rect']['x'])
-                shape_data['y'] = float(detected_object['rect']['y'])
                 shape_data['color'] = self.colors[detected_object['rect']['style'].split(';')[0]]
+                x,y = float(detected_object['rect']['x']),self.height - float(detected_object['rect']['y'])
+                coordinates = [
+                    (x,y),
+                    (shape_data['width'],y+shape_data['height']),
+                    (shape_data['width']+x,y+shape_data['height']),
+                    (shape_data['width']+x,shape_data['height'])
+                    ]
+                shape_data['CG'] = self.cal_center_of_gravity(shape_data['shape'],*coordinates) 
             elif 'path' in detected_object:
                 if (len(detected_object['path']['d'].split(','))-1) == 3:
                     shape_data['shape'] = 'triangle'
@@ -109,12 +122,12 @@ class SVGParser:
                     shape_data['shape'] = 'pentagon'
                 shape_data['points'] = list(chain.from_iterable(self.coordinates(detected_object['path']['d'])))
                 shape_data['color'] = self.colors[detected_object['path']['style'].split(';')[0]]
+                shape_data['CG'] = self.cal_center_of_gravity(shape_data['shape'],*shape_data['points'])
             elif 'ellipse' in detected_object:
                 shape_data['shape'] = 'ellipse'
                 shape_data['width'] = float(detected_object['ellipse']['rx'])
                 shape_data['height'] = float(detected_object['ellipse']['ry'])
-                shape_data['x'] = float(detected_object['ellipse']['cx'])
-                shape_data['y'] = float(detected_object['ellipse']['cy'])  
+                shape_data['CG'] = float(detected_object['ellipse']['cx']),float(detected_object['ellipse']['cy'])
                 shape_data['color'] = self.colors[detected_object['ellipse']['style'].split(';')[0]]
         
             yield shape_data
@@ -126,5 +139,6 @@ class SVGParser:
 
 
 if __name__ == '__main__':
-    SVGP = SVGParser('drawing.svg')
-    print(list(SVGP.run()))
+    SVGP = SVGParser('1.svg')
+    for i in SVGP.run():
+        print (i)
