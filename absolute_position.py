@@ -10,6 +10,16 @@ class Absolute:
         self.thresh = cv2.adaptiveThreshold(self.blur,255,1,1,11,2)
         self.height, self.width, _ = self.img.shape
         self.contours = self.extract_contours()
+        self.colors = {
+                "#552200":'brown', 
+                "#ff00ff": 'purple',
+                "#ffff00": 'yellow',
+                "#008000": 'green',
+                "#00ff00": 'light green',
+                "#000000": 'black',
+                "#0000ff": 'blue',
+                "#ff0000": 'red',
+                "#800000": 'maroon'}
 
     def extract_contours(self):
         contours,h = cv2.findContours(self.thresh,1,2)
@@ -27,8 +37,8 @@ class Absolute:
         return [x,y,w,h]
         #cv2.rectangle(img,(x,y),(x+w,y+h),(0,0,255),1)
 
-    def detect_area(self,centeroid):
-        x, y = centeroid
+    def detect_area(self,centroid):
+        x, y = centroid
         mean_x = self.width/5
         mean_y = self.height/5
         partition_x = 2*mean_x
@@ -91,7 +101,7 @@ class Absolute:
 
         return {name:{key: max(value,key=np.max) for key, value in info.items()} for name,info in shapes.items()}
 
-    def cal_centeroid(self, shape, cnt, *coordinates):
+    def cal_centroid(self, shape, cnt, *coordinates):
         if shape in {'rectangle','square','triangle'}:
             x,y = zip(*coordinates)
             length = len(coordinates)
@@ -107,6 +117,14 @@ class Absolute:
             x,y,w,h = self.bounding_rectangles(cnt)
             return x+w/2,y+h/2
 
+    def get_color(self, centroid):
+        y, x = centroid
+        r, g, b = self.img[x][y]
+        hex_value = "#{0:02x}{1:02x}{2:02x}".format(r, g, b)
+        try:
+            return self.colors[hex_value]
+        except KeyError:
+            return 'Undefined_color'
 
     def run(self):
         result = {}
@@ -116,14 +134,10 @@ class Absolute:
             coordinates = info['approx']
             contours = info.pop('contours')
             x, _, z = coordinates.shape
-            centeroid = self.cal_centeroid(name, contours, *coordinates.reshape(x,z))
-            print 'centeroid: ', centeroid
-            position = self.detect_area(centeroid)
-            result[name] = {}
-            result[name]['position'] = position
-            result[name]['centeroid'] = centeroid
-            result[name]['coordinates'] = coordinates
-        return result
+            centroid = self.cal_centroid(name, contours, *coordinates.reshape(x,z))
+            position = self.detect_area(centroid)
+            color = self.get_color(centroid)
+            yield Shape(name, coordinates, centroid, position, color)
 
     def show(self):
         cv2.imshow('img',self.img,)
@@ -131,8 +145,29 @@ class Absolute:
         cv2.destroyAllWindows()
 
 
+
+
+class Shape:
+    
+    def __init__(self, name, coordinates, centroid, position, color):
+        self.name = name
+        self.coordinates = coordinates
+        self.centroid = centroid
+        self.position = position
+        self.color = color
+
+    def area(self):
+        pass
+
+    def periohery(self):
+        pass
+
+    def strike(self):
+        pass
+
+
 if __name__ == '__main__':
 
     AB = Absolute()
-    print AB.run()
-    #AB.show()
+    # print [(i.name,i.color,i.position) for i in AB.run()]
+    # AB.show()
