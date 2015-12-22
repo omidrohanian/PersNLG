@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
-
+from operator import itemgetter
+import math
 
 class Absolute:
     def __init__(self,):
@@ -72,7 +73,6 @@ class Absolute:
         shapes = {}
         for cnt in self.contours:
             approx = cv2.approxPolyDP(cnt,0.01*cv2.arcLength(cnt,True),True)
-            print len(approx)
             if len(approx) == 5:
                 shapes['pentagon'] = {}
                 shapes['pentagon'].setdefault("approx",[]).append(approx)
@@ -134,10 +134,12 @@ class Absolute:
             coordinates = info['approx']
             contours = info.pop('contours')
             x, _, z = coordinates.shape
-            centroid = self.cal_centroid(name, contours, *coordinates.reshape(x,z))
+            _,_,w,h = self.bounding_rectangles(contours)
+            coordinates = coordinates.reshape(x,z)
+            centroid = self.cal_centroid(name, contours, *coordinates)
             position = self.detect_area(centroid)
             color = self.get_color(centroid)
-            yield Shape(name, coordinates, centroid, position, color)
+            yield Shape(name, coordinates, centroid, position, color, w, h)
 
     def show(self):
         cv2.imshow('img',self.img,)
@@ -149,18 +151,46 @@ class Absolute:
 
 class Shape:
     
-    def __init__(self, name, coordinates, centroid, position, color):
+    def __init__(self, name, coordinates, centroid, position, color, width, height):
         self.name = name
-        self.coordinates = coordinates
         self.centroid = centroid
+        self.coordinates = self.sort_coordinates(coordinates)
         self.position = position
         self.color = color
+        self.width = width
+        self.height = height
+    
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return "{}_{}".format(self.color, self.name)
+
+    def __contains__(self, shape_obj):
+        pass
+
+    def sort_coordinates(self, coordinates):
+        Cx, Cy = self.centroid
+        return sorted(coordinates, key=lambda p: math.atan2(p[1]-Cy,p[0]-Cx))
 
     def area(self):
-        pass
+        if self.name == 'triangle' :
+            (Ax,Ay),(Bx,By),(Cx,Cy) = self.coordinates
+            area = abs(Ax*(By-Cy)+Bx*(Cy-Ay)+Cx*(Ay-By))/2
+            return area
 
-    def periohery(self):
-        pass
+        elif self.name in {'square', 'rectangle', 'pentagon'} :
+            x,y = zip(*self.coordinates)
+            return sum(i*j for i,j in zip(x,y[1:]+(y[0],))) - sum(i*j for i,j in zip(y,x[1:]+(x[0],)))
+
+        elif self.name == 'cyrcle' :
+            radius = self.height/2
+            return math.pi*pow(radius,2)
+
+
+    def perimeter(self):
+        return sum(math.sqrt(pow(y2-y1,2)+pow(x2-x1,2)) for (x1,y1),(x2,y2) in zip(self.coordinates, self.coordinates[1:]))
+
 
     def strike(self):
         pass
@@ -169,5 +199,15 @@ class Shape:
 if __name__ == '__main__':
 
     AB = Absolute()
-    # print [(i.name,i.color,i.position) for i in AB.run()]
-    # AB.show()
+    objects = list(AB.run())
+    
+    for obj in objects:
+        print(repr(obj),'are = {},perimeter = {}'.format(obj.area(),obj.perimeter()))
+
+    """
+        ('purple_pentagon', 'are = 125207,perimeter = 802.031094624')
+        ('blue_arc', 'are = None,perimeter = 469.908106832')
+        ('Undefined_color_triangle', 'are = 18788,perimeter = 500.460172614')
+        ('green_rectangle', 'are = 61985,perimeter = 546.0')
+        ('red_square', 'are = 32637,perimeter = 382.0')
+    """
