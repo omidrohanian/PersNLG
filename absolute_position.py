@@ -202,12 +202,12 @@ if __name__ == '__main__':
     objects = list(AB.run())
     
     for obj in objects:
-        print(repr(obj),'are = {},perimeter = {}'.format(obj.area(),obj.perimeter()))
+        print(repr(obj),'area = {},perimeter = {}'.format(obj.area(),obj.perimeter()))
 
     """
-        ('purple_pentagon', 'are = 125207,perimeter = 802.031094624')
-        ('blue_arc', 'are = None,perimeter = 469.908106832')
-        ('Undefined_color_triangle', 'are = 18788,perimeter = 500.460172614')
-        ('green_rectangle', 'are = 61985,perimeter = 546.0')
-        ('red_square', 'are = 32637,perimeter = 382.0')
+        ('purple_pentagon', 'area = 125207,perimeter = 802.031094624')
+        ('blue_arc', 'area = None,perimeter = 469.908106832')
+        ('Undefined_color_triangle', 'area = 18788,perimeter = 500.460172614')
+        ('green_rectangle', 'area = 61985,perimeter = 546.0')
+        ('red_square', 'area = 32637,perimeter = 382.0')
     """
