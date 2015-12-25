@@ -1,12 +1,17 @@
+from operator import itemgetter
+from collections import Counter
+from itertools import product
 import numpy as np
 import cv2
-from operator import itemgetter
 import math
 
-class Absolute:
+
+
+class Absolute(object):
     def __init__(self,):
-        self.img = cv2.imread('Untitled2.png')
+        self.img = cv2.imread('drawing-4.jpg')
         self.gray = cv2.cvtColor(self.img,cv2.COLOR_BGR2GRAY)
+        #self.gray = self.remove_noise_2(self.gray)
         self.blur = cv2.GaussianBlur(self.gray,(5,5),0)
         self.thresh = cv2.adaptiveThreshold(self.blur,255,1,1,11,2)
         self.height, self.width, _ = self.img.shape
@@ -15,12 +20,42 @@ class Absolute:
                 "#552200":'brown', 
                 "#ff00ff": 'purple',
                 "#ffff00": 'yellow',
+                "#00ffff": 'yellow',
                 "#008000": 'green',
+                "#018000": 'green',
                 "#00ff00": 'light green',
+                "#01ff00": 'light green',
                 "#000000": 'black',
                 "#0000ff": 'blue',
+                "#0000fe": 'blue',
                 "#ff0000": 'red',
+                "#A02C2C": 'brown',
                 "#800000": 'maroon'}
+    def find_nearest(self, array, value):
+        idx = (np.abs(array-value)).argmin()
+        return array[idx]
+
+    def remove_noise(self, gray):
+        A = 20
+        Y,X = gray.shape
+        uniq_parts = [np.unique(gray[i:i+A,j:j+A].ravel()) for i,j in product(range(Y),range(X))]
+        uniq_pixles = np.unique([i[0] for i in uniq_parts if len(i)==1])
+        result = [self.find_nearest(uniq_pixles, pix) for pix in gray.ravel()]
+        return np.array(result).reshape(Y,X)
+
+    def remove_noise_2(self, gray):
+        A = 1
+        Y,X = gray.shape
+        nearest_neigbours = [[
+            np.argmax(
+                np.bincount(
+                    gray[max(i-A,0):min(i+A,Y),max(j-A,0):min(j+A,X)].ravel()
+                            )
+                    ) 
+            for j in range(X)] for i in range(Y)]
+        result = np.array(nearest_neigbours,dtype=np.uint8)
+        cv2.imwrite('result2.jpg', result)
+        return result
 
     def extract_contours(self):
         contours,h = cv2.findContours(self.thresh,1,2)
@@ -36,7 +71,7 @@ class Absolute:
     def bounding_rectangles(self, cnt):
         [x,y,w,h] = cv2.boundingRect(cnt)
         return [x,y,w,h]
-        #cv2.rectangle(img,(x,y),(x+w,y+h),(0,0,255),1)
+        cv2.rectangle(self.img,(x,y),(x+w,y+h),(0,0,255),1)
 
     def detect_area(self,centroid):
         x, y = centroid
@@ -70,36 +105,97 @@ class Absolute:
 
     def shape_name_and_coordinates(self,):
 
-        shapes = {}
+        shapes = []
         for cnt in self.contours:
             approx = cv2.approxPolyDP(cnt,0.01*cv2.arcLength(cnt,True),True)
-            if len(approx) == 5:
-                shapes['pentagon'] = {}
-                shapes['pentagon'].setdefault("approx",[]).append(approx)
-                shapes['pentagon'].setdefault("contours",[]).append(cnt)
-            elif len(approx) == 3:
-                shapes['triangle'] = {}
-                shapes['triangle'].setdefault("approx",[]).append(approx)
-                shapes['triangle'].setdefault("contours",[]).append(cnt)
-            elif len(approx) == 4:
+            approx_len = len(approx)
+
+            if approx_len == 5:
+                x, _, z = approx.shape
+                approx = approx.reshape(x,z)
+                centroid = self.cal_centroid('arc',cnt)
+                color = self.get_color(centroid)
+                shapes.append(
+                    {
+                        "name": "pentagon",
+                        "color": color,
+                        "centroid": centroid,
+                        "approx": approx,
+                        "contours": cnt
+                    }
+                )
+
+            elif approx_len == 3:
+                x, _, z = approx.shape
+                approx = approx.reshape(x,z)
+                centroid = self.cal_centroid('arc',cnt)
+                color = self.get_color(centroid)
+                shapes.append(
+                    {
+                        "name": "triangle",
+                        "color": color,
+                        "centroid": centroid,
+                        "approx": approx,
+                        "contours": cnt
+                    }
+                )
+
+            elif approx_len == 4:
                 _,_,w,h = self.bounding_rectangles(cnt)
                 if abs(w-h) < 10:
-                    shapes['square'] = {}
-                    shapes['square'].setdefault("approx",[]).append(approx)
-                    shapes['square'].setdefault("contours",[]).append(cnt)
+                    x, _, z = approx.shape
+                    approx = approx.reshape(x,z)
+                    centroid = self.cal_centroid('square', cnt, *approx)
+                    color = self.get_color(centroid)
+                    shapes.append(
+                    {
+                        "name": "square",
+                        "color": color,
+                        "centroid": centroid,
+                        "approx": approx,
+                        "contours": cnt
+                    }
+                )
                 else:
-                    shapes['rectangle'] = {}
-                    shapes['rectangle'].setdefault("approx",[]).append(approx)
-                    shapes['rectangle'].setdefault("contours",[]).append(cnt)
-            elif len(approx) >= 10:
-                shapes['arc'] = {}
-                shapes['arc'].setdefault("approx",[]).append(approx)
-                shapes['arc'].setdefault("contours",[]).append(cnt)
+                    x, _, z = approx.shape
+                    approx = approx.reshape(x,z)
+                    centroid = self.cal_centroid('rectangle', cnt, *approx)
+                    color = self.get_color(centroid)
+                    shapes.append(
+                    {
+                        "name": "rectangle",
+                        "color": color,
+                        "centroid": centroid,
+                        "approx": approx,
+                        "contours": cnt
+                    }
+                )
+
+            elif approx_len >= 10:
+                x, _, z = approx.shape
+                approx = approx.reshape(x,z)
+                centroid = self.cal_centroid('arc',cnt)
+                color = self.get_color(centroid)
+                shapes.append(
+                    {
+                        "name": "cyrcle",
+                        "color": color,
+                        "centroid": centroid,
+                        "approx": approx,
+                        "contours": cnt
+                    }
+                )
+
         return shapes
 
-    def get_uniqe_coordinates(self,shapes):
+    def get_uniqe_shapes(self,shapes):
+        result = {}
+        for shape in shapes:
+            Cy, Cx = shape["centroid"]
+            unique_centroid = round(Cy/10,-1), round(Cx/10,-1)
+            result.setdefault((shape["color"],unique_centroid),[]).append(shape)
+        return [max(value, key=lambda x: np.max(x['contours'])) if len(value)>1 else value[0] for value in result.values()]
 
-        return {name:{key: max(value,key=np.max) for key, value in info.items()} for name,info in shapes.items()}
 
     def cal_centroid(self, shape, cnt, *coordinates):
         if shape in {'rectangle','square','triangle'}:
@@ -122,27 +218,48 @@ class Absolute:
         r, g, b = self.img[x][y]
         hex_value = "#{0:02x}{1:02x}{2:02x}".format(r, g, b)
         try:
-            return self.colors[hex_value]
+            return self.colors[hex_value.lower()]
         except KeyError:
-            return 'Undefined_color'
+            return hex_value
+
+    def get_raw_color(self, centroid):
+        y, x = centroid
+        r, g, b = self.img[x][y]
+        hex_value = "#{0:02x}{1:02x}{2:02x}".format(r, g, b)
+        return hex_value
 
     def run(self):
-        result = {}
         shapes = self.shape_name_and_coordinates()
-        uniqe = self.get_uniqe_coordinates(shapes)
-        for name, info in uniqe.items():
-            coordinates = info['approx']
-            contours = info.pop('contours')
-            x, _, z = coordinates.shape
-            _,_,w,h = self.bounding_rectangles(contours)
-            coordinates = coordinates.reshape(x,z)
-            centroid = self.cal_centroid(name, contours, *coordinates)
+        uniqe = self.get_uniqe_shapes(shapes)
+        c = []
+        for shape in uniqe:
+            name, color, centroid, approx, contours = itemgetter(
+                "name",
+                "color",
+                "centroid",
+                "approx",
+                "contours"
+            )(shape)
+            c.append(centroid)
             position = self.detect_area(centroid)
-            color = self.get_color(centroid)
-            yield Shape(name, coordinates, centroid, position, color, w, h)
+            if name in {"triangle", "cyrcle", "pentagon"}:
+                centroid = self.cal_centroid(name,contours, *approx)
+            x,y,w,h = cv2.boundingRect(contours)
+            cv2.rectangle(self.img,(x,y),(x+w,y+h),(0,0,255),1)
+            yield Shape(name, approx, centroid, position, color, w, h)
 
+        print sorted(c)
+        #cv2.imshow('img',self.img,)
+        cv2.imwrite('result.jpg', self.img)
+        cv2.imwrite('result2.jpg', self.gray)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
     def show(self):
+        for cnt in self.contours:
+            x,y,w,h = cv2.boundingRect(cnt)
+            cv2.rectangle(self.gray,(x,y),(x+w,y+h),(0,0,255),1)
         cv2.imshow('img',self.img,)
+        #cv2.imwrite('result.jpg', self.img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -201,13 +318,16 @@ if __name__ == '__main__':
     AB = Absolute()
     objects = list(AB.run())
     
+    print "Total objects number: ", len(objects)
     for obj in objects:
-        print(repr(obj),'area = {},perimeter = {}'.format(obj.area(),obj.perimeter()))
+        print(repr(obj),'position = {}'.format(obj.position))
 
+
+    #AB.show()
     """
-        ('purple_pentagon', 'area = 125207,perimeter = 802.031094624')
-        ('blue_arc', 'area = None,perimeter = 469.908106832')
-        ('Undefined_color_triangle', 'area = 18788,perimeter = 500.460172614')
-        ('green_rectangle', 'area = 61985,perimeter = 546.0')
-        ('red_square', 'area = 32637,perimeter = 382.0')
+        ('purple_pentagon', 'are = 125207,perimeter = 802.031094624')
+        ('blue_arc', 'are = None,perimeter = 469.908106832')
+        ('Undefined_color_triangle', 'are = 18788,perimeter = 500.460172614')
+        ('green_rectangle', 'are = 61985,perimeter = 546.0')
+        ('red_square', 'are = 32637,perimeter = 382.0')
     """
