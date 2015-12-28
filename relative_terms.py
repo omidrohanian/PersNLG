@@ -1,14 +1,14 @@
 from identification_schema import Identification
-from itertools import combinations
-
-
+from itertools import combinations, product
+import numpy as np
+import math
 
 class Relative(Identification):
-	"""Relative relations between the shapes """
+	"""Relative relations between the shapes"""
 	def __init__(self):
 		super(Relative, self).__init__()
 
-	def contiguity(self):
+	def collision(self):
 		for shape1, shape2 in combinations(self.shapes,2):
 			first_range = set(shape1.point_range())
 			second_range = set(shape2.point_range())
@@ -21,9 +21,21 @@ class Relative(Identification):
 			if shape1.shape__range[-1] == shape2.shape__range[-1]:
 				yield shape1, shape2
 
-	def distance(self):
-		pass
+	def distance(self, shape1, shape2):
+		coord1 = shape1.coordinates
+		coord2 = shape2.coordinates
+		middle_dots_1 = [((x1+x2)/2,(y1+y2)/2) for (x1,y1),(x2,y2) in zip(coord1,coord1[1:])]
+		middle_dots_2 = [((x1+x2)/2,(y1+y2)/2) for (x1,y1),(x2,y2) in zip(coord2,coord2[1:])]
+		all_dots_1 = coord1 + middle_dots_1
+		all_dots_2 = coord2 + middle_dots_2
+		return min(math.sqrt(pow(y2-y1,2)+pow(x2-x1,2)) for dot1,dot2 in product(all_dots_1,all_dots_2))
+
+	def all_distances(self):
+		for shape1, shape2 in combinations(self.shapes,2):
+			yield shape1, shape2, self.distance(shape1, shape2)
+
 
 if __name__ == "__main__":
 	Re = Relative()
-	print list(Re.contiguity())
+	from operator import itemgetter
+	print min(Re.all_distances(), key= itemgetter(2))
