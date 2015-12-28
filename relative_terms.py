@@ -28,7 +28,7 @@ class Relative(Identification):
 		middle_dots_2 = [((x1+x2)/2,(y1+y2)/2) for (x1,y1),(x2,y2) in zip(coord2,coord2[1:])]
 		all_dots_1 = coord1 + middle_dots_1
 		all_dots_2 = coord2 + middle_dots_2
-		return min(math.sqrt(pow(y2-y1,2)+pow(x2-x1,2)) for dot1,dot2 in product(all_dots_1,all_dots_2))
+		return min(math.sqrt(pow(y2-y1,2)+pow(x2-x1,2)) for (x1,y1),(x2,y2) in product(all_dots_1,all_dots_2))
 
 	def all_distances(self):
 		for shape1, shape2 in combinations(self.shapes,2):
