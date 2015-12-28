@@ -9,7 +9,7 @@ import math
 
 class Absolute(object):
     def __init__(self,):
-        self.img = cv2.imread('drawing-4.jpg')
+        self.img = cv2.imread('drawing-5.jpg')
         self.gray = cv2.cvtColor(self.img,cv2.COLOR_BGR2GRAY)
         #self.gray = self.remove_noise_2(self.gray)
         self.blur = cv2.GaussianBlur(self.gray,(5,5),0)
@@ -44,7 +44,7 @@ class Absolute(object):
         return np.array(result).reshape(Y,X)
 
     def remove_noise_2(self, gray):
-        A = 1
+        A = 2
         Y,X = gray.shape
         nearest_neigbours = [[
             np.argmax(
@@ -248,20 +248,23 @@ class Absolute(object):
             cv2.rectangle(self.img,(x,y),(x+w,y+h),(0,0,255),1)
             yield Shape(name, approx, centroid, position, color, w, h)
 
-        print sorted(c)
         #cv2.imshow('img',self.img,)
         cv2.imwrite('result.jpg', self.img)
         cv2.imwrite('result2.jpg', self.gray)
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()
     def show(self):
-        for cnt in self.contours:
-            x,y,w,h = cv2.boundingRect(cnt)
-            cv2.rectangle(self.gray,(x,y),(x+w,y+h),(0,0,255),1)
-        cv2.imshow('img',self.img,)
-        #cv2.imwrite('result.jpg', self.img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        #img = self.gray
+        #img[img<255] = 0
+        img = cv2.imread('drawing-5.jpg')
+        img = self.remove_noise_2(img)
+        #cv2.imshow('img',img,)
+        #for cnt in self.contours:
+        #    x,y,w,h = cv2.boundingRect(cnt)
+        #    cv2.rectangle(img,(x,y),(x+w,y+h),(0,0,255),1)
+        cv2.imwrite('black3.jpg', img)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
 
 
 
@@ -285,6 +288,27 @@ class Shape:
 
     def __contains__(self, shape_obj):
         pass
+
+    def point_range(self):
+        if self.name == 'cyrcle':
+            X, Y = self.centroid
+            radius = self.height/2
+            for teta in range(361):
+                yield X-radius*math.cos(teta), Y-radius*math.sin(teta)
+        else:
+
+            for (x1, y1), (x2, y2) in zip(self.coordinates, self.coordinates[1:]):
+                x_range = range(x1, x2) if x1 < x2 else range(x2, x1)
+                y_range = range(y1, y2) if y1 < y2 else range(y2, y1)
+                for x, y in product(x_range, y_range):
+                    yield x, y
+
+    def shape_range(self):
+        max_y = self.centroid[1] + self.height/2
+        min_y = self.centroid[1] - self.height/2
+        max_x = self.centroid[0] + self.width/2
+        min_x = self.centroid[0] - self.width/2
+        return min_x, max_x, min_y, max_y
 
     def sort_coordinates(self, coordinates):
         Cx, Cy = self.centroid
@@ -317,7 +341,7 @@ if __name__ == '__main__':
 
     AB = Absolute()
     objects = list(AB.run())
-    
+    AB.show()
     print "Total objects number: ", len(objects)
     for obj in objects:
         print(repr(obj),'position = {}'.format(obj.position))
