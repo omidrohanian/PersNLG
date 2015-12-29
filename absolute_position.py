@@ -110,6 +110,7 @@ class Absolute(object):
         for cnt in self.contours:
             approx = cv2.approxPolyDP(cnt,0.01*cv2.arcLength(cnt,True),True)
             approx_len = len(approx)
+            _,_,w,h = cv2.boundingRect(cnt)
 
             if approx_len == 5:
                 x, _, z = approx.shape
@@ -122,7 +123,9 @@ class Absolute(object):
                         "color": color,
                         "centroid": centroid,
                         "approx": approx,
-                        "contours": cnt
+                        "contours": cnt,
+                        "height": h,
+                        "width": w
                     }
                 )
 
@@ -137,12 +140,13 @@ class Absolute(object):
                         "color": color,
                         "centroid": centroid,
                         "approx": approx,
-                        "contours": cnt
+                        "contours": cnt,
+                        "height": h,
+                        "width": w
                     }
                 )
 
             elif approx_len == 4:
-                _,_,w,h = self.bounding_rectangles(cnt)
                 if abs(w-h) < 40:
                     x, _, z = approx.shape
                     approx = approx.reshape(x,z)
@@ -154,7 +158,9 @@ class Absolute(object):
                         "color": color,
                         "centroid": centroid,
                         "approx": approx,
-                        "contours": cnt
+                        "contours": cnt,
+                        "height": h,
+                        "width": w
                     }
                 )
                 else:
@@ -168,7 +174,9 @@ class Absolute(object):
                         "color": color,
                         "centroid": centroid,
                         "approx": approx,
-                        "contours": cnt
+                        "contours": cnt,
+                        "height": h,
+                        "width": w
                     }
                 )
 
@@ -183,7 +191,9 @@ class Absolute(object):
                         "color": color,
                         "centroid": centroid,
                         "approx": approx,
-                        "contours": cnt
+                        "contours": cnt,
+                        "height": h,
+                        "width": w
                     }
                 )
 
@@ -200,23 +210,25 @@ class Absolute(object):
 
     def cal_centroid(self, shape, cnt, *coordinates):
         if shape in {'rectangle','square','triangle'}:
-            x,y = zip(*coordinates)
+            #x,y = zip(*coordinates)
             length = len(coordinates)
-            return sum(x)/length,sum(y)/length
-        elif shape == 'pentagon':
-            lenght = len(coordinates)
-            x_coords, y_coords = zip(*coordinates)
-            A = sum((x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/2
-            CX = sum((x_coords[i]+x_coords[i+1]) * (x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/(6*A)
-            CY = sum((y_coords[i]+y_coords[i+1]) * (x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/(6*A)
-            return round(CX,2),round(CY,2)
-        elif shape in {'arc', 'half_cyrcle', 'cyrcle'}:
+            return  np.sum(coordinates,axis=0)/length
+        #elif shape == 'pentagon':
+        #    lenght = len(coordinates)
+        #    x_coords, y_coords = zip(*coordinates)
+        #    A = sum((x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/2
+        #    CX = sum((x_coords[i]+x_coords[i+1]) * (x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/(6*A)
+        #    CY = sum((y_coords[i]+y_coords[i+1]) * (x_coords[i]*y_coords[i+1] - x_coords[i+1]*y_coords[i]) for i in range(lenght-1))/(6*A)
+        #    return round(CX,2),round(CY,2)
+        elif shape in {'arc', 'half_cyrcle', 'cyrcle', 'pentagon'}:
             x,y,w,h = self.bounding_rectangles(cnt)
             return x+w/2,y+h/2
 
     def get_color(self, centroid):
-        y, x = centroid
-        b, g, r = self.img[x][y]
+        x, y = centroid
+        #coords = (x, y-h/3), (x, y+h/3), (x-w/5, y), (x+w/5, y)
+        #b, g, r = np.max([self.img[j][i] for i,j in coords],axis=0)
+        b, g, r = self.img[y][x]
         hex_value = "#{0:02x}{1:02x}{2:02x}".format(r, g, b)
         try:
             return self.colors[hex_value.lower()]
@@ -234,20 +246,21 @@ class Absolute(object):
         uniqe = self.get_uniqe_shapes(shapes)
         c = []
         for shape in uniqe:
-            name, color, centroid, approx, contours = itemgetter(
+            name, color, centroid, approx, contours, height, width = itemgetter(
                 "name",
                 "color",
                 "centroid",
                 "approx",
-                "contours"
+                "contours",
+                "height",
+                "width"
             )(shape)
             c.append(centroid)
             position = self.detect_area(centroid)
             if name in {"triangle", "cyrcle", "pentagon"}:
                 centroid = self.cal_centroid(name,contours, *approx)
-            x,y,w,h = cv2.boundingRect(contours)
-            cv2.rectangle(self.img,(x,y),(x+w,y+h),(0,0,255),1)
-            yield Shape(name, approx, centroid, position, color, w, h)
+            yield Shape(name, approx, centroid, position, color, width, height)
+
 
     def show(self):
         #img = self.gray
@@ -341,14 +354,29 @@ if __name__ == '__main__':
     objects = list(AB.run())
     print "Total objects number: ", len(objects)
     for obj in objects:
-        print(repr(obj),'coordinates = {}'.format(obj.position))
+        print(repr(obj),'coordinates = {}, position = {}'.format(obj.centroid, obj.position))
 
-
-    #AB.show()
-    """
-        ('purple_pentagon', 'are = 125207,perimeter = 802.031094624')
-        ('blue_arc', 'are = None,perimeter = 469.908106832')
-        ('Undefined_color_triangle', 'are = 18788,perimeter = 500.460172614')
-        ('green_rectangle', 'are = 61985,perimeter = 546.0')
-        ('red_square', 'are = 32637,perimeter = 382.0')
-    """
+#Sample output
+"""
+Total objects number:  19
+('light green_square', 'coordinates = [206 645], position = down_left')
+('yellow_cyrcle', 'coordinates = (193, 92), position = up_left')
+('red_triangle', 'coordinates = [542 872], position = down_right')
+('dark blue_triangle', 'coordinates = [305 255], position = up_left')
+('yellow_pentagon', 'coordinates = (476, 255), position = up_right')
+('dark blue_cyrcle', 'coordinates = (360, 889), position = down')
+('yellow_cyrcle', 'coordinates = (340, 957), position = down')
+('dark green_square', 'coordinates = [126 984], position = down_left')
+('yellow_rectangle', 'coordinates = [605 756], position = down_right')
+('black_square', 'coordinates = [149 610], position = left')
+('red_rectangle', 'coordinates = [663 144], position = up_right')
+('black_square', 'coordinates = [66 80], position = up_left')
+('brown_triangle', 'coordinates = [ 37 820], position = down_left')
+('dark green_rectangle', 'coordinates = [ 98 343], position = up_left')
+('light green_rectangle', 'coordinates = [494 516], position = right')
+('dark green_pentagon', 'coordinates = (648, 968), position = down_right')
+('black_cyrcle', 'coordinates = (560, 512), position = right')
+('red_triangle', 'coordinates = [256 409], position = left')
+('brown_square', 'coordinates = [500 147], position = up_right')
+[Finished in 0.1s]
+"""
