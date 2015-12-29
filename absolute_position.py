@@ -9,7 +9,7 @@ import math
 
 class Absolute(object):
     def __init__(self,):
-        self.img = cv2.imread('drawing-5.jpg')
+        self.img = cv2.imread('drawing-4.jpg')
         self.gray = cv2.cvtColor(self.img,cv2.COLOR_BGR2GRAY)
         #self.gray = self.remove_noise_2(self.gray)
         self.blur = cv2.GaussianBlur(self.gray,(5,5),0)
@@ -20,16 +20,17 @@ class Absolute(object):
                 "#552200":'brown', 
                 "#ff00ff": 'purple',
                 "#ffff00": 'yellow',
-                "#00ffff": 'yellow',
-                "#008000": 'green',
+                "#008001": 'dark green',
                 "#018000": 'green',
-                "#00ff00": 'light green',
+                "#00ff01": 'light green',
                 "#01ff00": 'light green',
                 "#000000": 'black',
                 "#0000ff": 'blue',
                 "#0000fe": 'blue',
+                "#010080": 'dark blue',
                 "#ff0000": 'red',
-                "#A02C2C": 'brown',
+                "#fe0000": 'red',
+                "#a02c2c": 'brown',
                 "#800000": 'maroon'}
     def find_nearest(self, array, value):
         idx = (np.abs(array-value)).argmin()
@@ -142,7 +143,7 @@ class Absolute(object):
 
             elif approx_len == 4:
                 _,_,w,h = self.bounding_rectangles(cnt)
-                if abs(w-h) < 10:
+                if abs(w-h) < 40:
                     x, _, z = approx.shape
                     approx = approx.reshape(x,z)
                     centroid = self.cal_centroid('square', cnt, *approx)
@@ -215,7 +216,7 @@ class Absolute(object):
 
     def get_color(self, centroid):
         y, x = centroid
-        r, g, b = self.img[x][y]
+        b, g, r = self.img[x][y]
         hex_value = "#{0:02x}{1:02x}{2:02x}".format(r, g, b)
         try:
             return self.colors[hex_value.lower()]
@@ -248,16 +249,11 @@ class Absolute(object):
             cv2.rectangle(self.img,(x,y),(x+w,y+h),(0,0,255),1)
             yield Shape(name, approx, centroid, position, color, w, h)
 
-        #cv2.imshow('img',self.img,)
-        cv2.imwrite('result.jpg', self.img)
-        cv2.imwrite('result2.jpg', self.gray)
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
     def show(self):
         #img = self.gray
         #img[img<255] = 0
         img = cv2.imread('drawing-5.jpg')
-        img = self.remove_noise_2(img)
+        #img = self.remove_noise_2(img)
         #cv2.imshow('img',img,)
         #for cnt in self.contours:
         #    x,y,w,h = cv2.boundingRect(cnt)
@@ -287,7 +283,9 @@ class Shape:
         return "{}_{}".format(self.color, self.name)
 
     def __contains__(self, shape_obj):
-        pass
+        min_x_obj, max_x_obj, min_y_obj, max_y_obj = shape_obj.shape_range()
+        min_x, max_x, min_y, max_y = self.shape_range()
+        return min_x <= min_x_obj and  max_x >= max_x_obj and  min_y <= min_y_obj and max_y >= max_y_obj
 
     def point_range(self):
         if self.name == 'cyrcle':
@@ -341,10 +339,9 @@ if __name__ == '__main__':
 
     AB = Absolute()
     objects = list(AB.run())
-    AB.show()
     print "Total objects number: ", len(objects)
     for obj in objects:
-        print(repr(obj),'position = {}'.format(obj.position))
+        print(repr(obj),'coordinates = {}'.format(obj.position))
 
 
     #AB.show()
