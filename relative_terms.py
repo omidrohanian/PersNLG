@@ -47,4 +47,8 @@ if __name__ == "__main__":
 	from operator import itemgetter
 	#print max(Re.all_distances(), key= itemgetter(2))
 	#print list(Re.all_distances())
-	#print list(Re.bounding())
+	print list(Re.bounding())
+#sample output
+"""
+[(black_square, light green_square), (yellow_cyrcle, dark blue_cyrcle), (light green_rectangle, black_cyrcle)]
+"""
