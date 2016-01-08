@@ -13,27 +13,27 @@ from absolute_position import Absolute
 from operator import attrgetter
 
 
-class identification(Absolute):
+class Identification(Absolute):
     def __init__(self):
-        super(identification, self).__init__()
+        super(Identification, self).__init__()
         self.shapes = list(self.run())
 
-    def color_catecorizer(self):
+    def color_counter(self):
         return Counter(map(attrgetter('color'), self.shapes))
 
-    def type_categorizer(self):
+    def type_counter(self):
         return Counter(map(attrgetter('name'), self.shapes))
 
-    def position_categorizer(self):
+    def position_counter(self):
         return Counter(map(attrgetter('position'), self.shapes))
 
-    def perimeter_categorizer(self):
+    def perimeter_counter(self):
         return Counter(map(attrgetter('perimeter'), self.shapes))
 
-    def area_categorizer(self):
+    def area_counter(self):
         return Counter(map(attrgetter('area'), self.shapes))
 
-    def pcn_categorizer(self,key='position'):
+    def pcn_counter(self,key='position'):
         """
         This function stands for categorizing the shapes based on position, color and name.
         """
@@ -49,14 +49,11 @@ class identification(Absolute):
         return group_dict
 
     def contrast(self):
-        color_count = self.color_catecorizer()
+        color_count = self.color_counter()
         return {color:'low' if count<3 else 'high' for color,count in color_count.items()}
 
 
 if __name__ == '__main__':
-    ID = identification()
-    print(ID.pcn_categorizer())
+    ID = Identification()
+    print(ID.pcn_counter())
     print(ID.contrast())
-
-
-    
