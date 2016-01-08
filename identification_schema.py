@@ -18,6 +18,36 @@ class Identification(Absolute):
         super(Identification, self).__init__()
         self.shapes = list(self.run())
 
+    def color_categorizer(self):
+        self.color_dict = {}
+        for shape in self.shapes:
+            self.color_dict.setdefault(shape.color,[]).append(shape)
+        return self.color_dict
+
+    def type_categorizer(self):
+        self.type_dict = {}
+        for shape in self.shapes:
+            self.type_dict.setdefault(shape.name,[]).append(shape)
+        return self.type_dict
+
+    def position_categorizer(self):
+        self.position_dict = {}
+        for shape in self.shapes:
+            self.position_dict.setdefault(shape.position,[]).append(shape)
+        return self.position_dict
+
+    def perimeter_categorizer(self):
+        self.primeter_dict = {}
+        for shape in self.shapes:
+            self.primeter_dict.setdefault(shape.primeter,[]).append(shape)
+        return self.primeter_dict
+
+    def area_categorizer(self):
+        self.area_dict = {}
+        for shape in self.shapes:
+            self.area_dict.setdefault(shape.area,[]).append(shape)
+        return self.area_dict
+
     def color_counter(self):
         return Counter(map(attrgetter('color'), self.shapes))
 
@@ -55,5 +85,5 @@ class Identification(Absolute):
 
 if __name__ == '__main__':
     ID = Identification()
-    print(ID.pcn_counter())
+    print(ID.color_categorizer())
     print(ID.contrast())
