@@ -243,7 +243,7 @@ class Absolute(object):
         shapes = self.shape_name_and_coordinates()
         uniqe = self.get_uniqe_shapes(shapes)
         c = []
-        for shape in uniqe:
+        for index, shape in enumerate(uniqe):
             name, color, centroid, approx, contours, height, width = itemgetter(
                 "name",
                 "color",
@@ -257,7 +257,7 @@ class Absolute(object):
             position = self.detect_area(centroid)
             if name in {"triangle", "cyrcle", "pentagon"}:
                 centroid = self.cal_centroid(name,contours, *approx)
-            yield Shape(name, approx, centroid, position, color, width, height)
+            yield Shape(index, name, approx, centroid, position, color, width, height)
 
 
     def show(self):
@@ -278,7 +278,8 @@ class Absolute(object):
 
 class Shape:
     
-    def __init__(self, name, coordinates, centroid, position, color, width, height):
+    def __init__(self, ID_, name, coordinates, centroid, position, color, width, height):
+        self.ID = ID_ 
         self.name = name
         self.centroid = centroid
         self.coordinates = self.sort_coordinates(coordinates)
@@ -291,7 +292,7 @@ class Shape:
         return self.name
 
     def __repr__(self):
-        return "{}_{}".format(self.color, self.name)
+        return "{}_{}_{}".format(self.color, self.name, self.ID)
 
     def __contains__(self, shape_obj):
         min_x_obj, max_x_obj, min_y_obj, max_y_obj = shape_obj.shape_range()
@@ -352,7 +353,7 @@ if __name__ == '__main__':
     objects = list(AB.run())
     print "Total objects number: ", len(objects)
     for obj in objects:
-        print(repr(obj),'centroid = {}, position = {}'.format(obj.centroid, obj.position))
+        print(repr(obj), "position = {}".format(obj.position))
 
 #Sample output
 """
