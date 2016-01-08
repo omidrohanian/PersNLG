@@ -83,16 +83,14 @@ class Absolute(object):
         
         if (partition_x <=x<= mean_x+partition_x) and (partition_y <=y<= mean_y+partition_y):
             return 'central_area'
-        if (partition_x <=x<= mean_x+partition_x) and (0 <=y<= partition_y):
+        elif (partition_x <=x<= mean_x+partition_x) and (0 <=y<= partition_y):
             return 'center_up'
-        if (partition_x <=x<= mean_x+partition_x) and (partition_y + mean_y <=y<= self.height):
+        elif (partition_x <=x<= mean_x+partition_x) and (partition_y + mean_y <=y<= self.height):
             return 'center_down'
-        
         elif 0 <=x<= partition_x and partition_y <=y<= partition_y+mean_y:
             return 'center_left'
         elif partition_x+mean_x <=x<= self.width and partition_y <=y<= partition_y+mean_y:
             return 'center_right'
-        
         elif (0 <=x<= partition_x) and (0 <=y<= partition_y) :
             return 'up_left'
         elif (0 <=x<= partition_x) and (partition_y+mean_y <=y<= self.height):
